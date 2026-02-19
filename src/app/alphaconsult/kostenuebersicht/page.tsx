@@ -13,11 +13,12 @@ import {
 } from "@/lib/utils";
 
 type ViewMode = "fiscal" | "yearly" | "monthly";
+type SortBy = "default" | "name" | "kst" | "total-asc" | "total-desc";
 
 export default function KostenuebersichtPage() {
   const {
     contractsByArea, oneTimeCostsByArea, consultingCostsByArea,
-    data, setOverride, removeOverride,
+    data, setOverride, removeOverride, updateConsultingCost,
   } = useData();
 
   const contracts = contractsByArea("alphaconsult");
@@ -45,6 +46,45 @@ export default function KostenuebersichtPage() {
     : viewMode === "yearly"
       ? `Kalenderjahr ${calYear}`
       : formatMonth(monthIdx);
+
+  // ── Sort ──
+  const [sortBy, setSortBy] = useState<SortBy>("default");
+
+  const sortedContracts = useMemo(() => {
+    if (sortBy === "default") return contracts;
+    const arr = [...contracts];
+    if (sortBy === "name") return arr.sort((a, b) => a.name.localeCompare(b.name));
+    if (sortBy === "kst") return arr.sort((a, b) => a.costCenter.localeCompare(b.costCenter));
+    // total-asc / total-desc
+    const dir = sortBy === "total-asc" ? 1 : -1;
+    return arr.sort((a, b) => {
+      const ta = months.reduce((s, m) => s + calculateContractCost(a, m, overrides).amount, 0);
+      const tb = months.reduce((s, m) => s + calculateContractCost(b, m, overrides).amount, 0);
+      return (ta - tb) * dir;
+    });
+  }, [contracts, sortBy, months, overrides]);
+
+  const sortedConsulting = useMemo(() => {
+    if (sortBy === "default") return consulting;
+    const arr = [...consulting];
+    if (sortBy === "name") return arr.sort((a, b) => a.name.localeCompare(b.name));
+    if (sortBy === "kst") return arr.sort((a, b) => a.costCenter.localeCompare(b.costCenter));
+    const dir = sortBy === "total-asc" ? 1 : -1;
+    return arr.sort((a, b) => {
+      const ta = months.reduce((s, m) => s + (a.monthlyAmounts[m] ?? 0), 0);
+      const tb = months.reduce((s, m) => s + (b.monthlyAmounts[m] ?? 0), 0);
+      return (ta - tb) * dir;
+    });
+  }, [consulting, sortBy, months]);
+
+  const sortedOneTime = useMemo(() => {
+    if (sortBy === "default") return oneTime;
+    const arr = [...oneTime];
+    if (sortBy === "name") return arr.sort((a, b) => a.name.localeCompare(b.name));
+    if (sortBy === "kst") return arr.sort((a, b) => a.costCenter.localeCompare(b.costCenter));
+    const dir = sortBy === "total-asc" ? 1 : -1;
+    return arr.sort((a, b) => (a.amount - b.amount) * dir);
+  }, [oneTime, sortBy]);
 
   // ── One-time cost collapsible ──
   const [otExpanded, setOtExpanded] = useState(false);
@@ -118,6 +158,18 @@ export default function KostenuebersichtPage() {
           <span className="min-w-[120px] text-center text-sm font-medium">{periodLabel}</span>
           <button onClick={next} className="rounded border border-border px-2 py-1 text-sm hover:bg-muted">&rarr;</button>
         </div>
+        {/* Sort */}
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as SortBy)}
+          className="rounded-lg border border-border bg-card px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-ring"
+        >
+          <option value="default">Standard-Reihenfolge</option>
+          <option value="name">Name (A-Z)</option>
+          <option value="kst">Kostenstelle</option>
+          <option value="total-desc">Summe (absteigend)</option>
+          <option value="total-asc">Summe (aufsteigend)</option>
+        </select>
       </div>
 
       {/* Table */}
@@ -145,7 +197,7 @@ export default function KostenuebersichtPage() {
                 </td>
               </tr>
             )}
-            {contracts.map((c) => {
+            {sortedContracts.map((c) => {
               const cells = months.map((m) => calculateContractCost(c, m, overrides));
               const rowTotal = cells.reduce((s, cell) => s + cell.amount, 0);
               return (
@@ -188,7 +240,7 @@ export default function KostenuebersichtPage() {
                 </td>
               </tr>
             )}
-            {consulting.map((cc) => {
+            {sortedConsulting.map((cc) => {
               const rowTotal = months.reduce((s, m) => s + (cc.monthlyAmounts[m] ?? 0), 0);
               return (
                 <tr key={cc.id} className="border-b border-border/30 hover:bg-muted/30">
@@ -198,8 +250,43 @@ export default function KostenuebersichtPage() {
                   </td>
                   {months.map((m) => {
                     const amt = cc.monthlyAmounts[m] ?? 0;
+                    const isEditingThis = editCell?.id === cc.id && editCell?.month === m;
+                    if (isEditingThis) {
+                      return (
+                        <td key={m} className="px-1 py-1">
+                          <input
+                            type="number" step="0.01" value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") {
+                                const num = parseFloat(editValue);
+                                const ma = { ...cc.monthlyAmounts };
+                                if (!editValue || isNaN(num) || num === 0) delete ma[m]; else ma[m] = num;
+                                updateConsultingCost({ ...cc, monthlyAmounts: ma });
+                                setEditCell(null);
+                              }
+                              if (e.key === "Escape") setEditCell(null);
+                            }}
+                            onBlur={() => {
+                              const num = parseFloat(editValue);
+                              const ma = { ...cc.monthlyAmounts };
+                              if (!editValue || isNaN(num) || num === 0) delete ma[m]; else ma[m] = num;
+                              updateConsultingCost({ ...cc, monthlyAmounts: ma });
+                              setEditCell(null);
+                            }}
+                            autoFocus
+                            className="w-full rounded border border-primary bg-card px-2 py-1 text-right text-xs focus:outline-none focus:ring-2 focus:ring-ring"
+                          />
+                        </td>
+                      );
+                    }
                     return (
-                      <td key={m} className={`px-3 py-2 text-right tabular-nums ${amt === 0 ? "text-muted-foreground/40" : ""}`}>
+                      <td
+                        key={m}
+                        onClick={() => { setEditCell({ id: cc.id, month: m }); setEditValue(String(amt || "")); }}
+                        className={`px-3 py-2 text-right tabular-nums cursor-pointer hover:bg-primary/5 ${amt === 0 ? "text-muted-foreground/40" : ""}`}
+                        title="Klicken zum Bearbeiten"
+                      >
                         {amt === 0 ? "—" : formatCurrency(amt)}
                       </td>
                     );
@@ -239,7 +326,7 @@ export default function KostenuebersichtPage() {
                   )}
                   {otExpanded && <td colSpan={months.length + (months.length > 1 ? 1 : 0)} className="bg-petrol-superlight/30" />}
                 </tr>
-                {otExpanded && oneTime.map((ot) => (
+                {otExpanded && sortedOneTime.map((ot) => (
                   <tr key={ot.id} className="border-b border-border/30 hover:bg-muted/30">
                     <td className="sticky left-0 z-10 bg-card px-4 py-2 pl-8 font-medium">
                       <div>{ot.name}</div>
@@ -325,17 +412,17 @@ function CostCell({
     );
   }
 
+  const showAmount = amount !== 0;
+
   return (
     <td
-      onClick={isActive ? onStartEdit : undefined}
-      className={`px-3 py-2 text-right tabular-nums ${
-        isActive ? "cursor-pointer hover:bg-primary/5" : ""
-      } ${isOverridden ? "bg-amber-50 dark:bg-amber-950/30 font-medium" : ""} ${
-        !isActive || amount === 0 ? "text-muted-foreground/40" : ""
-      }`}
-      title={isOverridden ? "Manuell überschrieben – klicken zum Bearbeiten" : isActive ? "Klicken zum Überschreiben" : ""}
+      onClick={onStartEdit}
+      className={`px-3 py-2 text-right tabular-nums cursor-pointer hover:bg-primary/5 ${
+        isOverridden ? "bg-amber-50 dark:bg-amber-950/30 font-medium" : ""
+      } ${!showAmount ? "text-muted-foreground/40" : ""}`}
+      title={isOverridden ? "Manuell überschrieben – klicken zum Bearbeiten" : "Klicken zum Überschreiben"}
     >
-      {!isActive || amount === 0 ? "—" : formatCurrency(amount)}
+      {showAmount ? formatCurrency(amount) : "—"}
       {isOverridden && <span className="ml-1 text-[10px] text-amber-600">●</span>}
     </td>
   );

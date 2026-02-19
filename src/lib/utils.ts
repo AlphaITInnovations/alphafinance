@@ -28,7 +28,7 @@ export function calendarYearMonths(year: number): string[] {
 }
 
 export function fiscalYearLabel(fy: number): string {
-  return `GJ ${fy}/${fy + 1}`;
+  return `Geschäftsjahr ${String(fy).slice(2)}`;
 }
 
 // ── Formatting ──
@@ -83,18 +83,18 @@ export function calculateContractCost(
   month: string,
   overrides: CostOverride[],
 ): { amount: number; isOverridden: boolean; isActive: boolean } {
-  // Outside contract period
-  if (month < contract.startDate)
-    return { amount: 0, isOverridden: false, isActive: false };
-  if (contract.endDate && month > contract.endDate)
-    return { amount: 0, isOverridden: false, isActive: false };
-
-  // Manual override
+  // Manual override (always takes priority, even outside contract period)
   const override = overrides.find(
     (o) => o.contractId === contract.id && o.month === month,
   );
   if (override)
     return { amount: override.amount, isOverridden: true, isActive: true };
+
+  // Outside contract period
+  if (month < contract.startDate)
+    return { amount: 0, isOverridden: false, isActive: false };
+  if (contract.endDate && month > contract.endDate)
+    return { amount: 0, isOverridden: false, isActive: false };
 
   // Not a billing month → 0
   if (!isBillingMonth(contract, month))
