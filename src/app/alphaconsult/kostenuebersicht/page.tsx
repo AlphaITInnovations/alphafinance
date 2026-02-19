@@ -395,7 +395,10 @@ export default function KostenuebersichtPage() {
           <span className="inline-block h-3 w-3 rounded-sm bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-300 dark:border-emerald-700" />
           <span className="text-emerald-600 dark:text-emerald-400">✓</span> Mit Rechnung abgeglichen
         </span>
-        <span>Klicken Sie auf einen Wert zum Überschreiben, auf ✓ zum Abgleichen</span>
+        <span className="flex items-center gap-1">
+          <span className="text-amber-600">✕</span> Override entfernen (Vertragsstandard)
+        </span>
+        <span>Wert klicken = Überschreiben · ✓ = Abgleichen · ✕ = Standard</span>
       </div>
     </div>
   );
@@ -433,11 +436,16 @@ function CostCell({
             className="w-full rounded border border-primary bg-card px-2 py-1 text-right text-xs focus:outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
-        {onRemoveOverride && (
-          <button onClick={onRemoveOverride} className="mt-0.5 text-[10px] text-destructive hover:underline">
-            Override entfernen
+        <div className="mt-0.5 flex justify-end gap-2">
+          {onRemoveOverride && (
+            <button onClick={onRemoveOverride} className="text-[10px] text-destructive hover:underline">
+              Standard
+            </button>
+          )}
+          <button onClick={onCancelEdit} className="text-[10px] text-muted-foreground hover:underline">
+            Abbrechen
           </button>
-        )}
+        </div>
       </td>
     );
   }
@@ -458,7 +466,15 @@ function CostCell({
       >
         {showAmount ? formatCurrency(amount) : "—"}
       </span>
-      {isOverridden && <span className="ml-1 text-[10px] text-amber-600">●</span>}
+      {isOverridden && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onRemoveOverride?.(); }}
+          className="ml-1 inline-flex items-center text-[11px] text-amber-600 hover:text-destructive transition-colors"
+          title="Override entfernen — Vertragsstandard wiederherstellen"
+        >
+          ✕
+        </button>
+      )}
       {showAmount && (
         <button
           onClick={(e) => { e.stopPropagation(); onToggleVerified(); }}
