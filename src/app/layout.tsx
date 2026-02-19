@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Sidebar } from "@/components/sidebar";
 import { ThemeProvider } from "@/components/theme-provider";
+import { DataProvider } from "@/context/data-context";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -16,8 +17,7 @@ const geistMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "AlphaFinance - Finanzverwaltung",
-  description:
-    "Interne Finanzverwaltung - Alpha IT Innovations GmbH",
+  description: "Interne Finanzverwaltung - Alpha IT Innovations GmbH",
 };
 
 export default function RootLayout({
@@ -31,12 +31,14 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ThemeProvider>
-          <div className="flex min-h-screen">
-            <Sidebar />
-            <main className="flex flex-1 flex-col lg:pl-64">
-              <div className="flex-1 p-4 lg:p-8">{children}</div>
-            </main>
-          </div>
+          <DataProvider>
+            <div className="flex min-h-screen">
+              <Sidebar />
+              <main className="flex flex-1 flex-col lg:pl-64">
+                <div className="flex-1 p-4 lg:p-8">{children}</div>
+              </main>
+            </div>
+          </DataProvider>
         </ThemeProvider>
       </body>
     </html>
