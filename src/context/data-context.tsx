@@ -60,6 +60,26 @@ const SEED: AppData = {
       pricingType: "fixed",
       monthlyAmount: 149.94,
     },
+    {
+      id: "brunner-seed",
+      area: "alphaconsult",
+      name: "Brunner & Schmidt Pay per User",
+      vendor: "Brunner & Schmidt Datentechnik GmbH",
+      company: "Dr. Overmann, Loh & Co. KG",
+      costCenter: "15",
+      startDate: "2024-11",
+      endDate: "2026-10",
+      cancellationPeriod: "2 Jahre Laufzeit",
+      billingInterval: "monthly",
+      pricingType: "per-user",
+      costPerUnit: 742.89,
+      defaultUnitCount: 57,
+      monthlyUnits: {
+        "2025-07": 57, "2025-08": 57, "2025-09": 57,
+        "2025-10": 57, "2025-11": 57, "2025-12": 57,
+        "2026-01": 57,
+      },
+    },
   ],
   oneTimeCosts: [
     {
@@ -88,6 +108,13 @@ const SEED: AppData = {
   overrides: [
     { contractId: "timebutler-seed", month: "2025-12", amount: 71.34 },
     { contractId: "timebutler-seed", month: "2026-02", amount: 528.16 },
+    { contractId: "brunner-seed", month: "2025-07", amount: 42344.72 },
+    { contractId: "brunner-seed", month: "2025-08", amount: 40852.46 },
+    { contractId: "brunner-seed", month: "2025-09", amount: 41055.95 },
+    { contractId: "brunner-seed", month: "2025-10", amount: 40784.63 },
+    { contractId: "brunner-seed", month: "2025-11", amount: 41327.27 },
+    { contractId: "brunner-seed", month: "2025-12", amount: 42548.21 },
+    { contractId: "brunner-seed", month: "2026-01", amount: 41802.08 },
   ],
 };
 

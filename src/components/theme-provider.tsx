@@ -14,14 +14,15 @@ export function useTheme() {
 }
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setTheme] = useState<Theme>("light");
+  const [theme, setTheme] = useState<Theme>("dark");
 
   useEffect(() => {
     const saved = localStorage.getItem("theme") as Theme | null;
     if (saved) {
       setTheme(saved);
       document.documentElement.classList.toggle("dark", saved === "dark");
-    } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+    } else {
+      // Default to dark
       setTheme("dark");
       document.documentElement.classList.add("dark");
     }
