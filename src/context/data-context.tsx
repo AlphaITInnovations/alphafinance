@@ -80,6 +80,19 @@ const SEED: AppData = {
         "2026-01": 57,
       },
     },
+    {
+      id: "ninjaone-seed",
+      area: "alphaconsult",
+      name: "ninjaOne Monitoring",
+      description: "NinjaOne Unlimited Ticketing, MDM, Advanced, SentinelOne",
+      vendor: "ninjaOne, LLC",
+      company: "Dr. Overmann, Loh & Co. KG",
+      costCenter: "15",
+      startDate: "2025-09",
+      billingInterval: "monthly",
+      pricingType: "fixed",
+      monthlyAmount: 4454.77,
+    },
   ],
   oneTimeCosts: [
     {
@@ -115,6 +128,7 @@ const SEED: AppData = {
     { contractId: "brunner-seed", month: "2025-11", amount: 41327.27 },
     { contractId: "brunner-seed", month: "2025-12", amount: 42548.21 },
     { contractId: "brunner-seed", month: "2026-01", amount: 41802.08 },
+    { contractId: "ninjaone-seed", month: "2025-09", amount: 3448.07 },
   ],
 };
 

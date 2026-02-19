@@ -1,17 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { useData } from "@/context/data-context";
+import { SortableTable, type Column } from "@/components/sortable-table";
 import type { ConsultingCost } from "@/lib/types";
 import { formatMonth, formatCurrency, fiscalYearMonths, currentFiscalYear } from "@/lib/utils";
 
 const EMPTY: Omit<ConsultingCost, "id"> = {
-  area: "alphaconsult",
-  name: "",
-  vendor: "",
-  company: "",
-  costCenter: "",
-  monthlyAmounts: {},
+  area: "alphaconsult", name: "", vendor: "", company: "", costCenter: "", monthlyAmounts: {},
 };
 
 export default function ConsultingPage() {
@@ -20,17 +16,30 @@ export default function ConsultingPage() {
   const [editing, setEditing] = useState<ConsultingCost | null>(null);
   const [creating, setCreating] = useState(false);
 
+  const columns: Column<ConsultingCost>[] = useMemo(() => [
+    { key: "name", label: "Bezeichnung", sortValue: (c) => c.name, render: (c) => (
+      <div><div className="font-medium">{c.name}</div><div className="text-xs text-muted-foreground">{c.vendor}</div></div>
+    )},
+    { key: "company", label: "Firma", sortValue: (c) => c.company, render: (c) => c.company },
+    { key: "kst", label: "KST", sortValue: (c) => c.costCenter, render: (c) => c.costCenter || "—", className: "tabular-nums" },
+    { key: "months", label: "Monate", sortValue: (c) => Object.keys(c.monthlyAmounts).length,
+      render: (c) => {
+        const n = Object.keys(c.monthlyAmounts).length;
+        return <span className="text-muted-foreground">{n} {n === 1 ? "Eintrag" : "Einträge"}</span>;
+      }},
+    { key: "total", label: "Gesamt", sortValue: (c) => Object.values(c.monthlyAmounts).reduce((s, v) => s + v, 0),
+      className: "text-right tabular-nums font-medium",
+      render: (c) => formatCurrency(Object.values(c.monthlyAmounts).reduce((s, v) => s + v, 0)) },
+  ], []);
+
   return (
     <div>
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Consulting</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Dienstleister und Consulting-Kosten</p>
+          <p className="mt-1 text-sm text-muted-foreground">Dienstleister und Consulting-Kosten — Klicken Sie auf Spaltenköpfe zum Sortieren</p>
         </div>
-        <button
-          onClick={() => { setCreating(true); setEditing(null); }}
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-petrol-dark transition-colors"
-        >
+        <button onClick={() => { setCreating(true); setEditing(null); }} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-petrol-dark transition-colors">
           + Neuer Dienstleister
         </button>
       </div>
@@ -40,75 +49,41 @@ export default function ConsultingPage() {
           initial={editing ?? EMPTY}
           isNew={creating}
           onSave={(c) => {
-            if (creating) addConsultingCost(c);
-            else if (editing) updateConsultingCost({ ...c, id: editing.id } as ConsultingCost);
+            if (creating) addConsultingCost(c); else if (editing) updateConsultingCost({ ...c, id: editing.id } as ConsultingCost);
             setCreating(false); setEditing(null);
           }}
           onCancel={() => { setCreating(false); setEditing(null); }}
         />
       )}
 
-      <div className="space-y-3">
-        {items.length === 0 && !creating && (
-          <p className="text-sm text-muted-foreground">Keine Consulting-Kosten vorhanden.</p>
+      <SortableTable
+        columns={columns}
+        data={items}
+        keyFn={(c) => c.id}
+        actions={(c) => (
+          <div className="flex gap-2">
+            <button onClick={() => { setEditing(c); setCreating(false); }} className="text-sm text-primary hover:underline">Bearbeiten</button>
+            <button onClick={() => { if (confirm("Löschen?")) deleteConsultingCost(c.id); }} className="text-sm text-destructive hover:underline">Löschen</button>
+          </div>
         )}
-        {items.map((c) => {
-          const total = Object.values(c.monthlyAmounts).reduce((s, v) => s + v, 0);
-          const months = Object.keys(c.monthlyAmounts).sort();
-          return (
-            <div key={c.id} className="rounded-xl border border-border/50 bg-card p-4 shadow-sm transition-all hover:shadow-md hover:border-primary/30">
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="font-semibold text-card-foreground">{c.name}</h3>
-                  <p className="text-sm text-muted-foreground">{c.vendor}</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <span className="text-lg font-bold text-card-foreground">{formatCurrency(total)}</span>
-                  <button onClick={() => { setEditing(c); setCreating(false); }} className="text-sm text-primary hover:underline">Bearbeiten</button>
-                  <button onClick={() => { if (confirm("Löschen?")) deleteConsultingCost(c.id); }} className="text-sm text-destructive hover:underline">Löschen</button>
-                </div>
-              </div>
-              <div className="mt-2 flex gap-6 text-sm">
-                <span className="text-muted-foreground">Firma: <span className="text-card-foreground">{c.company}</span></span>
-                {c.costCenter && <span className="text-muted-foreground">KST: <span className="text-card-foreground">{c.costCenter}</span></span>}
-              </div>
-              {months.length > 0 && (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {months.map((m) => (
-                    <span key={m} className="rounded-full bg-muted px-2 py-0.5 text-xs">
-                      {formatMonth(m)}: {formatCurrency(c.monthlyAmounts[m])}
-                    </span>
-                  ))}
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
+      />
     </div>
   );
 }
 
-function ConsultingForm({
-  initial, isNew, onSave, onCancel,
-}: {
-  initial: Omit<ConsultingCost, "id"> | ConsultingCost;
-  isNew: boolean;
-  onSave: (c: Omit<ConsultingCost, "id">) => void;
-  onCancel: () => void;
+function ConsultingForm({ initial, isNew, onSave, onCancel }: {
+  initial: Omit<ConsultingCost, "id"> | ConsultingCost; isNew: boolean;
+  onSave: (c: Omit<ConsultingCost, "id">) => void; onCancel: () => void;
 }) {
   const [form, setForm] = useState({ ...initial, monthlyAmounts: { ...initial.monthlyAmounts } });
   const months = fiscalYearMonths(currentFiscalYear());
-
-  const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
-    setForm((f) => ({ ...f, [k]: v }));
+  const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((f) => ({ ...f, [k]: v }));
 
   const setMonth = (m: string, v: string) => {
     const num = parseFloat(v);
     setForm((f) => {
       const ma = { ...f.monthlyAmounts };
-      if (!v || isNaN(num)) delete ma[m];
-      else ma[m] = num;
+      if (!v || isNaN(num)) delete ma[m]; else ma[m] = num;
       return { ...f, monthlyAmounts: ma };
     });
   };
@@ -128,14 +103,8 @@ function ConsultingForm({
           {months.map((m) => (
             <div key={m}>
               <label className="mb-0.5 block text-[10px] text-muted-foreground">{formatMonth(m)}</label>
-              <input
-                type="number"
-                step="0.01"
-                value={form.monthlyAmounts[m] ?? ""}
-                onChange={(e) => setMonth(m, e.target.value)}
-                className="w-full rounded border border-input bg-card px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-ring"
-                placeholder="—"
-              />
+              <input type="number" step="0.01" value={form.monthlyAmounts[m] ?? ""} onChange={(e) => setMonth(m, e.target.value)}
+                className="w-full rounded border border-input bg-card px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-ring" placeholder="—" />
             </div>
           ))}
         </div>

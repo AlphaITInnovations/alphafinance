@@ -2,18 +2,25 @@
 
 import { useState } from "react";
 import { useData } from "@/context/data-context";
+import { SortableTable, type Column } from "@/components/sortable-table";
 import type { OneTimeCost } from "@/lib/types";
 import { formatMonth, formatCurrency, nowMonth } from "@/lib/utils";
 
 const EMPTY: Omit<OneTimeCost, "id"> = {
-  area: "alphaconsult",
-  name: "",
-  vendor: "",
-  company: "",
-  costCenter: "",
-  date: nowMonth(),
-  amount: 0,
+  area: "alphaconsult", name: "", vendor: "", company: "", costCenter: "", date: nowMonth(), amount: 0,
 };
+
+const columns: Column<OneTimeCost>[] = [
+  { key: "name", label: "Bezeichnung", sortValue: (c) => c.name, render: (c) => (
+    <div><div className="font-medium">{c.name}</div>{c.description && <div className="text-xs text-muted-foreground">{c.description}</div>}</div>
+  )},
+  { key: "vendor", label: "Lieferant", sortValue: (c) => c.vendor, render: (c) => c.vendor },
+  { key: "company", label: "Firma", sortValue: (c) => c.company, render: (c) => c.company },
+  { key: "kst", label: "KST", sortValue: (c) => c.costCenter, render: (c) => c.costCenter || "—", className: "tabular-nums" },
+  { key: "date", label: "Datum", sortValue: (c) => c.date, render: (c) => formatMonth(c.date) },
+  { key: "amount", label: "Betrag", sortValue: (c) => c.amount, className: "text-right tabular-nums font-medium",
+    render: (c) => formatCurrency(c.amount) },
+];
 
 export default function EinmaligeKostenPage() {
   const { oneTimeCostsByArea, addOneTimeCost, updateOneTimeCost, deleteOneTimeCost } = useData();
@@ -26,12 +33,9 @@ export default function EinmaligeKostenPage() {
       <div className="mb-6 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold tracking-tight">Einmalige Kosten</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Einmalige Anschaffungen und Kosten</p>
+          <p className="mt-1 text-sm text-muted-foreground">Einmalige Anschaffungen und Kosten — Klicken Sie auf Spaltenköpfe zum Sortieren</p>
         </div>
-        <button
-          onClick={() => { setCreating(true); setEditing(null); }}
-          className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-petrol-dark transition-colors"
-        >
+        <button onClick={() => { setCreating(true); setEditing(null); }} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-petrol-dark transition-colors">
           + Neue Position
         </button>
       </div>
@@ -39,11 +43,10 @@ export default function EinmaligeKostenPage() {
       {(creating || editing) && (
         <div className="mb-6 rounded-xl border border-primary/30 bg-card p-6 shadow-md">
           <h3 className="mb-4 text-lg font-semibold">{creating ? "Neue Position" : "Position bearbeiten"}</h3>
-          <OneTimeCostForm
+          <CostForm
             initial={editing ?? EMPTY}
             onSave={(c) => {
-              if (creating) addOneTimeCost(c);
-              else if (editing) updateOneTimeCost({ ...c, id: editing.id } as OneTimeCost);
+              if (creating) addOneTimeCost(c); else if (editing) updateOneTimeCost({ ...c, id: editing.id } as OneTimeCost);
               setCreating(false); setEditing(null);
             }}
             onCancel={() => { setCreating(false); setEditing(null); }}
@@ -51,46 +54,27 @@ export default function EinmaligeKostenPage() {
         </div>
       )}
 
-      <div className="space-y-3">
-        {items.length === 0 && !creating && (
-          <p className="text-sm text-muted-foreground">Keine einmaligen Kosten vorhanden.</p>
-        )}
-        {items.map((c) => (
-          <div key={c.id} className="rounded-xl border border-border/50 bg-card p-4 shadow-sm transition-all hover:shadow-md hover:border-primary/30">
-            <div className="flex items-start justify-between">
-              <div>
-                <h3 className="font-semibold text-card-foreground">{c.name}</h3>
-                <p className="text-sm text-muted-foreground">{c.vendor}</p>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className="text-lg font-bold text-card-foreground">{formatCurrency(c.amount)}</span>
-                <button onClick={() => { setEditing(c); setCreating(false); }} className="text-sm text-primary hover:underline">Bearbeiten</button>
-                <button onClick={() => { if (confirm("Löschen?")) deleteOneTimeCost(c.id); }} className="text-sm text-destructive hover:underline">Löschen</button>
-              </div>
-            </div>
-            <div className="mt-2 flex gap-6 text-sm">
-              <span className="text-muted-foreground">Firma: <span className="text-card-foreground">{c.company}</span></span>
-              {c.costCenter && <span className="text-muted-foreground">KST: <span className="text-card-foreground">{c.costCenter}</span></span>}
-              <span className="text-muted-foreground">Datum: <span className="text-card-foreground">{formatMonth(c.date)}</span></span>
-            </div>
-            {c.description && <p className="mt-1 text-xs text-muted-foreground">{c.description}</p>}
+      <SortableTable
+        columns={columns}
+        data={items}
+        keyFn={(c) => c.id}
+        actions={(c) => (
+          <div className="flex gap-2">
+            <button onClick={() => { setEditing(c); setCreating(false); }} className="text-sm text-primary hover:underline">Bearbeiten</button>
+            <button onClick={() => { if (confirm("Löschen?")) deleteOneTimeCost(c.id); }} className="text-sm text-destructive hover:underline">Löschen</button>
           </div>
-        ))}
-      </div>
+        )}
+      />
     </div>
   );
 }
 
-function OneTimeCostForm({
-  initial, onSave, onCancel,
-}: {
+function CostForm({ initial, onSave, onCancel }: {
   initial: Omit<OneTimeCost, "id"> | OneTimeCost;
-  onSave: (c: Omit<OneTimeCost, "id">) => void;
-  onCancel: () => void;
+  onSave: (c: Omit<OneTimeCost, "id">) => void; onCancel: () => void;
 }) {
   const [form, setForm] = useState({ ...initial });
-  const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) =>
-    setForm((f) => ({ ...f, [k]: v }));
+  const set = <K extends keyof typeof form>(k: K, v: (typeof form)[K]) => setForm((f) => ({ ...f, [k]: v }));
 
   return (
     <>
