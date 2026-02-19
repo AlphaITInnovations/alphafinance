@@ -19,6 +19,7 @@ export default function KostenuebersichtPage() {
   const {
     contractsByArea, oneTimeCostsByArea, consultingCostsByArea,
     data, setOverride, removeOverride, updateConsultingCost,
+    toggleVerification, isVerified,
   } = useData();
 
   const contracts = contractsByArea("alphaconsult");
@@ -214,6 +215,8 @@ export default function KostenuebersichtPage() {
                       isActive={cell.isActive}
                       isEditing={editCell?.id === c.id && editCell?.month === months[i]}
                       editValue={editValue}
+                      verified={isVerified(c.id, months[i])}
+                      onToggleVerified={() => toggleVerification(c.id, months[i])}
                       onStartEdit={() => { setEditCell({ id: c.id, month: months[i] }); setEditValue(String(cell.amount || "")); }}
                       onEditChange={setEditValue}
                       onSaveEdit={() => {
@@ -280,14 +283,34 @@ export default function KostenuebersichtPage() {
                         </td>
                       );
                     }
+                    const cellVerified = isVerified(cc.id, m);
                     return (
                       <td
                         key={m}
-                        onClick={() => { setEditCell({ id: cc.id, month: m }); setEditValue(String(amt || "")); }}
-                        className={`px-3 py-2 text-right tabular-nums cursor-pointer hover:bg-primary/5 ${amt === 0 ? "text-muted-foreground/40" : ""}`}
-                        title="Klicken zum Bearbeiten"
+                        className={`px-3 py-2 text-right tabular-nums ${
+                          cellVerified ? "bg-emerald-50 dark:bg-emerald-950/20" : ""
+                        } ${amt === 0 ? "text-muted-foreground/40" : ""}`}
                       >
-                        {amt === 0 ? "—" : formatCurrency(amt)}
+                        <span
+                          onClick={() => { setEditCell({ id: cc.id, month: m }); setEditValue(String(amt || "")); }}
+                          className="cursor-pointer hover:underline decoration-primary/40"
+                          title="Klicken zum Bearbeiten"
+                        >
+                          {amt === 0 ? "—" : formatCurrency(amt)}
+                        </span>
+                        {amt !== 0 && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); toggleVerification(cc.id, m); }}
+                            className={`ml-1 inline-flex items-center text-[11px] transition-colors ${
+                              cellVerified
+                                ? "text-emerald-600 dark:text-emerald-400"
+                                : "text-muted-foreground/30 hover:text-muted-foreground/60"
+                            }`}
+                            title={cellVerified ? "Abgeglichen mit Rechnung — klicken zum Aufheben" : "Als abgeglichen markieren"}
+                          >
+                            ✓
+                          </button>
+                        )}
                       </td>
                     );
                   })}
@@ -364,11 +387,15 @@ export default function KostenuebersichtPage() {
       </div>
 
       {/* Legend */}
-      <div className="mt-3 flex items-center gap-4 text-xs text-muted-foreground">
+      <div className="mt-3 flex flex-wrap items-center gap-4 text-xs text-muted-foreground">
         <span className="flex items-center gap-1">
-          <span className="inline-block h-3 w-3 rounded-sm bg-amber-100 border border-amber-300" /> Manuell überschrieben
+          <span className="inline-block h-3 w-3 rounded-sm bg-amber-100 dark:bg-amber-950/50 border border-amber-300 dark:border-amber-700" /> Manuell überschrieben
         </span>
-        <span>Klicken Sie auf einen Wert, um ihn zu überschreiben</span>
+        <span className="flex items-center gap-1">
+          <span className="inline-block h-3 w-3 rounded-sm bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-300 dark:border-emerald-700" />
+          <span className="text-emerald-600 dark:text-emerald-400">✓</span> Mit Rechnung abgeglichen
+        </span>
+        <span>Klicken Sie auf einen Wert zum Überschreiben, auf ✓ zum Abgleichen</span>
       </div>
     </div>
   );
@@ -376,6 +403,7 @@ export default function KostenuebersichtPage() {
 
 function CostCell({
   amount, isOverridden, isActive, isEditing, editValue,
+  verified, onToggleVerified,
   onStartEdit, onEditChange, onSaveEdit, onCancelEdit, onRemoveOverride,
 }: {
   amount: number;
@@ -383,6 +411,8 @@ function CostCell({
   isActive: boolean;
   isEditing: boolean;
   editValue: string;
+  verified: boolean;
+  onToggleVerified: () => void;
   onStartEdit: () => void;
   onEditChange: (v: string) => void;
   onSaveEdit: () => void;
@@ -416,14 +446,32 @@ function CostCell({
 
   return (
     <td
-      onClick={onStartEdit}
-      className={`px-3 py-2 text-right tabular-nums cursor-pointer hover:bg-primary/5 ${
-        isOverridden ? "bg-amber-50 dark:bg-amber-950/30 font-medium" : ""
+      className={`relative px-3 py-2 text-right tabular-nums ${
+        verified ? "bg-emerald-50 dark:bg-emerald-950/20" : ""
+      } ${isOverridden ? "bg-amber-50 dark:bg-amber-950/30 font-medium" : ""
       } ${!showAmount ? "text-muted-foreground/40" : ""}`}
-      title={isOverridden ? "Manuell überschrieben – klicken zum Bearbeiten" : "Klicken zum Überschreiben"}
     >
-      {showAmount ? formatCurrency(amount) : "—"}
+      <span
+        onClick={onStartEdit}
+        className="cursor-pointer hover:underline decoration-primary/40"
+        title={isOverridden ? "Manuell überschrieben – klicken zum Bearbeiten" : "Klicken zum Überschreiben"}
+      >
+        {showAmount ? formatCurrency(amount) : "—"}
+      </span>
       {isOverridden && <span className="ml-1 text-[10px] text-amber-600">●</span>}
+      {showAmount && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onToggleVerified(); }}
+          className={`ml-1 inline-flex items-center text-[11px] transition-colors ${
+            verified
+              ? "text-emerald-600 dark:text-emerald-400"
+              : "text-muted-foreground/30 hover:text-muted-foreground/60"
+          }`}
+          title={verified ? "Abgeglichen mit Rechnung — klicken zum Aufheben" : "Als abgeglichen markieren"}
+        >
+          ✓
+        </button>
+      )}
     </td>
   );
 }

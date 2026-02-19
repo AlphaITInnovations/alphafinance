@@ -53,9 +53,15 @@ export interface CostOverride {
   amount: number;
 }
 
+export interface CostVerification {
+  entityId: string;  // contract or consulting cost id
+  month: string;     // YYYY-MM
+}
+
 export interface AppData {
   contracts: Contract[];
   oneTimeCosts: OneTimeCost[];
   consultingCosts: ConsultingCost[];
   overrides: CostOverride[];
+  verifications: CostVerification[];
 }

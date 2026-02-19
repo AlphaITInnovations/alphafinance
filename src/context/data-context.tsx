@@ -9,7 +9,7 @@ import {
   type ReactNode,
 } from "react";
 import type {
-  AppData, Contract, OneTimeCost, ConsultingCost, CostOverride, Area,
+  AppData, Contract, OneTimeCost, ConsultingCost, CostOverride, CostVerification, Area,
 } from "@/lib/types";
 import { generateId } from "@/lib/utils";
 
@@ -130,6 +130,7 @@ const SEED: AppData = {
     { contractId: "brunner-seed", month: "2026-01", amount: 41802.08 },
     { contractId: "ninjaone-seed", month: "2025-09", amount: 3448.07 },
   ],
+  verifications: [],
 };
 
 // ── Context ──
@@ -148,6 +149,8 @@ interface DataContextValue {
   deleteConsultingCost: (id: string) => void;
   setOverride: (contractId: string, month: string, amount: number) => void;
   removeOverride: (contractId: string, month: string) => void;
+  toggleVerification: (entityId: string, month: string) => void;
+  isVerified: (entityId: string, month: string) => boolean;
   contractsByArea: (area: Area) => Contract[];
   oneTimeCostsByArea: (area: Area) => OneTimeCost[];
   consultingCostsByArea: (area: Area) => ConsultingCost[];
@@ -158,7 +161,7 @@ export function useData() { return useContext(DataContext); }
 
 export function DataProvider({ children }: { children: ReactNode }) {
   const [data, setData] = useState<AppData>({
-    contracts: [], oneTimeCosts: [], consultingCosts: [], overrides: [],
+    contracts: [], oneTimeCosts: [], consultingCosts: [], overrides: [], verifications: [],
   });
   const [loaded, setLoaded] = useState(false);
 
@@ -167,8 +170,9 @@ export function DataProvider({ children }: { children: ReactNode }) {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         const parsed = JSON.parse(raw);
-        // Ensure consultingCosts exists (migration)
+        // Migrations
         if (!parsed.consultingCosts) parsed.consultingCosts = [];
+        if (!parsed.verifications) parsed.verifications = [];
         setData(parsed);
       } else {
         setData(SEED);
@@ -242,6 +246,20 @@ export function DataProvider({ children }: { children: ReactNode }) {
     setData((d) => ({ ...d, overrides: d.overrides.filter((o) => !(o.contractId === contractId && o.month === month)) }));
   }, []);
 
+  const toggleVerification = useCallback((entityId: string, month: string) => {
+    setData((d) => {
+      const exists = d.verifications.some((v) => v.entityId === entityId && v.month === month);
+      if (exists) {
+        return { ...d, verifications: d.verifications.filter((v) => !(v.entityId === entityId && v.month === month)) };
+      }
+      return { ...d, verifications: [...d.verifications, { entityId, month }] };
+    });
+  }, []);
+
+  const isVerified = useCallback((entityId: string, month: string) => {
+    return data.verifications.some((v) => v.entityId === entityId && v.month === month);
+  }, [data.verifications]);
+
   const contractsByArea = useCallback((area: Area) => data.contracts.filter((c) => c.area === area), [data.contracts]);
   const oneTimeCostsByArea = useCallback((area: Area) => data.oneTimeCosts.filter((c) => c.area === area), [data.oneTimeCosts]);
   const consultingCostsByArea = useCallback((area: Area) => data.consultingCosts.filter((c) => c.area === area), [data.consultingCosts]);
@@ -253,6 +271,7 @@ export function DataProvider({ children }: { children: ReactNode }) {
       addOneTimeCost, updateOneTimeCost, deleteOneTimeCost,
       addConsultingCost, updateConsultingCost, deleteConsultingCost,
       setOverride, removeOverride,
+      toggleVerification, isVerified,
       contractsByArea, oneTimeCostsByArea, consultingCostsByArea,
     }}>
       {children}
