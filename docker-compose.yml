@@ -1,0 +1,24 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    ports:
+      - "3005:3000"
+    environment:
+      - NODE_ENV=production
+    restart: unless-stopped
+    networks:
+      - internal
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.alphafinance.rule=Host(`alphafinance.int.alpha-it-innovations.org`)"
+      - "traefik.http.routers.alphafinance.entrypoints=web"
+      - "traefik.http.routers.alphafinance-secure.rule=Host(`alphafinance.int.alpha-it-innovations.org`)"
+      - "traefik.http.routers.alphafinance-secure.entrypoints=websecure"
+      - "traefik.http.routers.alphafinance-secure.tls=true"
+      - "traefik.http.services.alphafinance.loadbalancer.server.port=3000"
+
+networks:
+  internal:
+    driver: bridge
